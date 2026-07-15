@@ -20,6 +20,8 @@ A pre-configured [SearXNG](https://github.com/searxng/searxng) template for Rail
 
 The only required variable is `SEARXNG_SECRET` (any long random string — the template generates one). The instance refuses to start without it.
 
+The template deploys **without public networking**: SearXNG has no auth and this config disables the rate limiter, so it's meant to be reached only by services in the same Railway project at `http://searxng.railway.internal:8080`. If you need access from outside Railway, enable public networking on your deployment (target port 8080) — and know that anyone with the URL can query your instance.
+
 ### Any container platform
 
 ```bash
@@ -40,23 +42,25 @@ These are read natively by SearXNG — `settings.yml` intentionally omits `secre
 
 ## API Usage
 
+From another service in the same Railway project, the base URL is `http://searxng.railway.internal:8080`.
+
 ```bash
 # Basic JSON search (hits the "general" category)
-curl "https://your-instance/search?q=python+async&format=json"
+curl "http://searxng.railway.internal:8080/search?q=python+async&format=json"
 
 # Category matters: dev engines live in "it", academic in "science".
 # A plain query does NOT hit them — select the category:
-curl "https://your-instance/search?q=tokio+channels&format=json&categories=it"
-curl "https://your-instance/search?q=mixture+of+experts&format=json&categories=science"
+curl "http://searxng.railway.internal:8080/search?q=tokio+channels&format=json&categories=it"
+curl "http://searxng.railway.internal:8080/search?q=mixture+of+experts&format=json&categories=science"
 
 # Or target specific engines
-curl "https://your-instance/search?q=transformers&format=json&engines=arxiv,github"
+curl "http://searxng.railway.internal:8080/search?q=transformers&format=json&engines=arxiv,github"
 
 # Or use bang shortcuts inside the query
-curl "https://your-instance/search?q=%21gh+railway+cli&format=json"
+curl "http://searxng.railway.internal:8080/search?q=%21gh+railway+cli&format=json"
 
 # Paginate and time-filter
-curl "https://your-instance/search?q=rust&format=json&pageno=2&time_range=week"
+curl "http://searxng.railway.internal:8080/search?q=rust&format=json&pageno=2&time_range=week"
 ```
 
 The JSON response has `results` (each with `url`, `title`, `content`, `engine`, `score`), plus `answers`, `infoboxes`, and `suggestions`.
