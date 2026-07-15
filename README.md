@@ -16,7 +16,7 @@ A pre-configured [SearXNG](https://github.com/searxng/searxng) template for Rail
 
 ### Railway
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/bNKW-H?referralCode=NhCCIt&utm_medium=integration&utm_source=template&utm_campaign=generic)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/searxng-api?referralCode=NhCCIt&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
 The only required variable is `SEARXNG_SECRET` (any long random string — the template generates one). The instance refuses to start without it.
 
