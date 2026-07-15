@@ -1,0 +1,51 @@
+name: update-searxng
+
+# Upstream SearXNG publishes rolling date-tagged images (no releases), so
+# this checks Docker Hub weekly and opens a PR bumping the pinned
+# SEARXNG_VERSION in the Dockerfile. CI smoke tests the PR; merging and
+# cutting a release publishes the updated image.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find latest upstream tag
+        id: upstream
+        run: |
+          tag=$(curl -fsS "https://hub.docker.com/v2/repositories/searxng/searxng/tags?page_size=25&ordering=last_updated" \
+            | jq -r '[.results[].name | select(test("^[0-9]{4}\\."))] | first')
+          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+            echo "could not determine latest upstream tag" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Update Dockerfile pin
+        run: |
+          sed -i -E "s|^ARG SEARXNG_VERSION=.*|ARG SEARXNG_VERSION=${{ steps.upstream.outputs.tag }}|" Dockerfile
+
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: bump-searxng-version
+          commit-message: "Bump SearXNG to ${{ steps.upstream.outputs.tag }}"
+          title: "Bump SearXNG to ${{ steps.upstream.outputs.tag }}"
+          body: |
+            Automated bump of the pinned upstream SearXNG image to
+            `${{ steps.upstream.outputs.tag }}`.
+
+            CI builds and smoke tests this PR. After merging, cut a release
+            to publish the updated image.
+          delete-branch: true

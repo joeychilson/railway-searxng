@@ -1,16 +1,16 @@
 # SearXNG Railway
 
-A pre-configured SearXNG template for Railway, optimized for LLM tool use.
+A pre-configured [SearXNG](https://github.com/searxng/searxng) template for Railway, optimized for LLM / agent tool use: a private metasearch instance your agents query over a plain GET JSON API.
 
 ## Features
 
-- JSON and HTML output formats enabled
-- GET method for simple query-string API access
-- No rate limiting (suitable for private instances)
-- Extended timeouts for reliable results (10s/20s)
-- Curated search engines with weighted results
-- Academic/research engines included (arxiv, semantic scholar, etc.)
-- Redis caching support via environment variable
+- **JSON API over GET** — `?q=...&format=json` with no POST bodies or CSRF dance
+- **Pinned upstream version** — the Dockerfile pins a dated SearXNG image; images publish under immutable tags, never `latest`
+- **Curated, weighted engines** — a diverse general-web set plus API-backed engines (GitHub, arXiv, PyPI, ...) that never CAPTCHA
+- **Engines that block datacenter IPs disabled** — Google and Bing CAPTCHA cloud IPs quickly; failing engines only add latency
+- **Latency-bounded** — 8s engine timeout, single retry; SearXNG waits for the slowest engine, so this caps response time
+- **No rate limiter** — private instance; no Redis/Valkey needed
+- **Health-checked** — `/healthz` wired into `railway.json` (Railway ignores Docker `HEALTHCHECK`s)
 
 ## Deploy
 
@@ -18,60 +18,74 @@ A pre-configured SearXNG template for Railway, optimized for LLM tool use.
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/bNKW-H?referralCode=NhCCIt&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
-1. Deploy this repo
-2. Add a Redis service
-3. Set environment variables:
-   - `SEARXNG_SECRET_KEY` - any random string
-   - `SEARXNG_REDIS_URL` - use Railway's Redis connection string
+The only required variable is `SEARXNG_SECRET` (any long random string — the template generates one). The instance refuses to start without it.
 
-### Any Container Platform
+### Any container platform
 
 ```bash
 docker build -t searxng .
-docker run -p 8080:8080 \
-  -e SEARXNG_SECRET_KEY=your-secret \
-  -e SEARXNG_REDIS_URL=redis://your-redis:6379/0 \
-  searxng
+docker run -p 8080:8080 -e SEARXNG_SECRET="$(openssl rand -hex 32)" searxng
 ```
+
+Or locally: `docker compose up --build`
 
 ## Environment Variables
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `SEARXNG_SECRET_KEY` | Secret key for the instance | Yes |
-| `SEARXNG_REDIS_URL` | Redis connection URL for caching | No |
+| `SEARXNG_SECRET` | Secret key for the instance (server-side crypto) | Yes |
+| `SEARXNG_BASE_URL` | Public URL of the instance (e.g. `https://your-app.up.railway.app/`) | No |
+
+These are read natively by SearXNG — `settings.yml` intentionally omits `secret_key`.
 
 ## API Usage
 
 ```bash
-# Basic JSON search
+# Basic JSON search (hits the "general" category)
 curl "https://your-instance/search?q=python+async&format=json"
 
-# Target specific engines
-curl "https://your-instance/search?q=transformers&format=json&engines=arxiv,semantic+scholar"
+# Category matters: dev engines live in "it", academic in "science".
+# A plain query does NOT hit them — select the category:
+curl "https://your-instance/search?q=tokio+channels&format=json&categories=it"
+curl "https://your-instance/search?q=mixture+of+experts&format=json&categories=science"
 
-# Paginate results
-curl "https://your-instance/search?q=rust&format=json&pageno=2"
+# Or target specific engines
+curl "https://your-instance/search?q=transformers&format=json&engines=arxiv,github"
 
-# Filter by time
-curl "https://your-instance/search?q=news&format=json&time_range=day"
+# Or use bang shortcuts inside the query
+curl "https://your-instance/search?q=%21gh+railway+cli&format=json"
+
+# Paginate and time-filter
+curl "https://your-instance/search?q=rust&format=json&pageno=2&time_range=week"
 ```
+
+The JSON response has `results` (each with `url`, `title`, `content`, `engine`, `score`), plus `answers`, `infoboxes`, and `suggestions`.
+
+**Agent tip:** give your agent one tool with `query`, optional `categories` (`general` | `it` | `science`), and optional `time_range`. That covers web, dev, and academic search with a single instance.
 
 ## Enabled Search Engines
 
-**General:** DuckDuckGo, Brave, Qwant, Mojeek
+| Category | Engines |
+|----------|---------|
+| general | DuckDuckGo, Brave, Startpage, Qwant, Mojeek, Wikipedia, Wikidata, Currency |
+| it / q&a | GitHub, GitLab, StackOverflow, MDN, Hacker News, Arch Wiki |
+| packages | npm, PyPI, crates.io, pkg.go.dev, Docker Hub |
+| science | arXiv, Semantic Scholar, Crossref, PubMed |
 
-**Code:** GitHub, StackOverflow, GitLab, Codeberg
+**Disabled:** Google, Bing, Yahoo, Yandex, Baidu (block datacenter IPs or add noise).
 
-**Docs:** MDN, Arch Wiki
+General-web engines are scraped and can intermittently CAPTCHA cloud IPs; the enabled set is deliberately diverse so one engine blocking doesn't empty results. Check `/stats` on your instance to see per-engine error rates.
 
-**Packages:** NPM, PyPI, Crates.io, pkg.go.dev, Docker Hub
+## Versioning
 
-**Academic:** arXiv, Semantic Scholar, CrossRef, PubMed
+Upstream SearXNG ships rolling date-tagged images with no stable releases, so this template pins an exact tag (`ARG SEARXNG_VERSION` in the Dockerfile). A weekly workflow opens a PR bumping the pin; CI smoke tests every build. Images publish to GHCR only when a GitHub release is cut, under immutable tags (`X.Y.Z`, `X.Y`, `sha-<commit>`) — never `latest`, so deployed instances are never mutated underneath.
 
-**Reference:** Wikipedia, Wikidata, Wikibooks, Currency
+## Development
 
-**Disabled:** Google, Bing, Yahoo, Yandex, Baidu
+```bash
+docker build -t searxng-test .
+./test/smoke-test.sh searxng-test
+```
 
 ## License
 

@@ -1,62 +1,76 @@
+# SearXNG configuration for a private, agent-facing instance.
+#
+# The secret key is NOT set here — it comes from the SEARXNG_SECRET
+# environment variable, which SearXNG reads natively. The instance refuses
+# to start without it.
+#
+# Engine notes: SearXNG scrapes most general engines, and datacenter IPs
+# (Railway runs on GCP) get CAPTCHA'd or rate-limited by some of them —
+# Google is disabled for that reason. A diverse set of general engines is
+# enabled so a single engine blocking doesn't empty the results. API-backed
+# engines (wikipedia, github, arxiv, pypi, ...) are reliable from any IP.
+# Check /stats on a running instance to see which engines are erroring.
+
 use_default_settings: true
 
 general:
-  instance_name: "searxng"
+  instance_name: "SearXNG"
 
 server:
-  secret_key: "${SEARXNG_SECRET_KEY}"
+  # Private instance: no bot detection / rate limiting. Do not expose this
+  # publicly with the limiter off.
   limiter: false
   public_instance: false
+  # GET keeps the API usable with plain query strings (curl, http clients).
   method: "GET"
 
 search:
   safe_search: 0
   default_lang: "en"
   autocomplete: ""
+  # json is what agents consume; html is kept so the web UI works for
+  # debugging (removing it 403s the root page).
   formats:
+    - html
     - json
   max_page: 5
 
 outgoing:
-  request_timeout: 15.0
-  max_request_timeout: 30.0
+  # SearXNG waits for the slowest engine, so these bound response latency.
+  request_timeout: 8.0
+  max_request_timeout: 15.0
   pool_connections: 100
   pool_maxsize: 20
   enable_http2: true
-  retries: 2
+  retries: 1
 
 engines:
-  # General search engines
+  # --- General (category: general — the default for /search) ---
   - name: duckduckgo
     shortcut: ddg
-    weight: 1.5
+    weight: 1.3
   - name: brave
     shortcut: br
-    weight: 1.5
+    weight: 1.3
   - name: startpage
     shortcut: sp
-    weight: 1.4
-  - name: bing
-    shortcut: bi
-    weight: 1.3
-
-  # Knowledge/Reference
+    weight: 1.2
+  - name: qwant
+    shortcut: qw
+    weight: 1.0
+  - name: mojeek
+    shortcut: mjk
+    weight: 0.9
   - name: wikipedia
     shortcut: wp
-    weight: 1.5
+    weight: 1.2
   - name: wikidata
     shortcut: wd
-    weight: 0.8
-  - name: wikibooks
-    shortcut: wb
-    weight: 0.6
-  - name: arch linux wiki
-    shortcut: aw
-    weight: 0.8
+    weight: 0.7
   - name: currency
     weight: 1.0
 
-  # Developer resources
+  # --- Developer (categories: it / q&a / packages — pass categories=it) ---
   - name: github
     shortcut: gh
     weight: 1.2
@@ -72,8 +86,9 @@ engines:
   - name: hackernews
     shortcut: hn
     weight: 0.8
-
-  # Package registries
+  - name: arch linux wiki
+    shortcut: aw
+    weight: 0.8
   - name: npm
     shortcut: npm
     weight: 0.8
@@ -90,7 +105,7 @@ engines:
     shortcut: dh
     weight: 0.8
 
-  # Academic/Research
+  # --- Academic (category: science — pass categories=science) ---
   - name: arxiv
     shortcut: arx
     weight: 1.5
@@ -104,18 +119,17 @@ engines:
     shortcut: pm
     weight: 0.8
 
-  # Disabled engines
+  # --- Disabled: block datacenter IPs quickly (google, bing) or add noise.
+  # Failing engines cost latency (searxng waits on them), so keep this list.
   - name: google
+    disabled: true
+  - name: bing
     disabled: true
   - name: yahoo
     disabled: true
   - name: yandex
     disabled: true
   - name: baidu
-    disabled: true
-  - name: qwant
-    disabled: true
-  - name: mojeek
     disabled: true
   - name: ahmia
     disabled: true
@@ -124,6 +138,8 @@ engines:
   - name: codeberg
     disabled: true
   - name: free software directory
+    disabled: true
+  - name: wikibooks
     disabled: true
   - name: wikisource
     disabled: true

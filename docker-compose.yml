@@ -1,0 +1,9 @@
+# Local development / testing. Production deploys go through Railway.
+services:
+  searxng:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-local-dev-only-secret}
+      SEARXNG_BASE_URL: ${SEARXNG_BASE_URL:-http://localhost:8080/}
