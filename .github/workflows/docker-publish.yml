@@ -1,10 +1,11 @@
 name: build
 
-# Publishing model: images are published ONLY when a GitHub release is cut,
-# under immutable version tags (X.Y.Z, X.Y, sha-<commit>). No `latest` tag —
-# existing Railway deployments pin the tag they deployed with and must never
-# have an image mutated underneath them. Pushes and PRs build + smoke test
-# without publishing.
+# Publishing model: images publish ONLY when a GitHub release is cut. No
+# `latest` tag. X.Y.Z and sha-<commit> tags are immutable; X.Y tracks the
+# latest patch in that minor — the channel the Railway template deploys.
+# Upstream bumps ship as patch releases; template-behavior changes bump
+# the minor/major so they never reach the template without a deliberate
+# republish. Pushes and PRs build + smoke test without publishing.
 
 on:
   pull_request:

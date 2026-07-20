@@ -98,8 +98,9 @@ jobs:
 
             ${{ steps.compare.outputs.line }}
 
-            CI smoke tests this PR. After merging, cut a release to
-            publish the updated image — suggested title:
+            CI smoke tests this PR. After merging, cut a **patch** release
+            (the Railway template follows the `X.Y` channel, which picks up
+            patches automatically) — suggested title:
             `vX.Y.Z — SearXNG ${{ steps.upstream.outputs.tag }}`
           delete-branch: true
 
