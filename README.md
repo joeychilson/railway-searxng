@@ -84,6 +84,8 @@ General-web engines are scraped and can intermittently CAPTCHA cloud IPs; the en
 
 Upstream SearXNG ships rolling date-tagged images with no stable releases, so this template pins an exact tag (`ARG SEARXNG_VERSION` in the Dockerfile). A weekly workflow opens a PR bumping the pin; CI smoke tests every build. Images publish to GHCR only when a GitHub release is cut, under immutable tags (`X.Y.Z`, `X.Y`, `sha-<commit>`) — never `latest`, so deployed instances are never mutated underneath.
 
+Template versions are deliberately independent of upstream's date tags (template-only changes get releases too), but every release records which SearXNG it wraps: release titles follow `vX.Y.Z — SearXNG <upstream tag>`, and published images carry the exact upstream image in the `org.opencontainers.image.base.name` label.
+
 ## Development
 
 ```bash

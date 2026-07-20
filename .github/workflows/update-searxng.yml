@@ -4,6 +4,13 @@ name: update-searxng
 # this checks Docker Hub weekly and opens a PR bumping the pinned
 # SEARXNG_VERSION in the Dockerfile. CI smoke tests the PR; merging and
 # cutting a release publishes the updated image.
+#
+# The PR is opened with the default GITHUB_TOKEN, which requires the repo
+# setting "Allow GitHub Actions to create and approve pull requests".
+# GitHub suppresses `pull_request` events for GITHUB_TOKEN-created PRs, so
+# the last step dispatches the build workflow on the bump branch instead
+# (workflow_dispatch is exempt from that suppression). No PAT to manage
+# or expire.
 
 on:
   schedule:
@@ -13,39 +20,91 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
+
+concurrency:
+  group: update-searxng
 
 jobs:
   bump:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      - name: Read current pin
+        id: current
+        run: |
+          tag=$(sed -nE 's/^ARG SEARXNG_VERSION=(.+)$/\1/p' Dockerfile)
+          if [ -z "$tag" ]; then
+            echo "::error::ARG SEARXNG_VERSION not found in Dockerfile"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # The full-string regex is both a format filter and an injection
+      # guard: the tag is external input that later lands in shell lines,
+      # so only [0-9.], a dash, and a hex sha may pass.
       - name: Find latest upstream tag
         id: upstream
         run: |
-          tag=$(curl -fsS "https://hub.docker.com/v2/repositories/searxng/searxng/tags?page_size=25&ordering=last_updated" \
-            | jq -r '[.results[].name | select(test("^[0-9]{4}\\."))] | first')
-          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
-            echo "could not determine latest upstream tag" >&2
+          tag=$(curl -fsS --retry 3 --max-time 30 \
+            "https://hub.docker.com/v2/repositories/searxng/searxng/tags?page_size=25&ordering=last_updated" \
+            | jq -r '[.results[].name | select(test("^[0-9]{4}\\.[0-9]{1,2}\\.[0-9]{1,2}(-[0-9a-f]{6,40})?$"))] | first // empty')
+          if [ -z "$tag" ]; then
+            echo "::error::could not determine latest upstream tag"
             exit 1
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Update Dockerfile pin
+        if: steps.upstream.outputs.tag != steps.current.outputs.tag
+        env:
+          NEW_TAG: ${{ steps.upstream.outputs.tag }}
         run: |
-          sed -i -E "s|^ARG SEARXNG_VERSION=.*|ARG SEARXNG_VERSION=${{ steps.upstream.outputs.tag }}|" Dockerfile
+          sed -i -E "s|^ARG SEARXNG_VERSION=.*|ARG SEARXNG_VERSION=${NEW_TAG}|" Dockerfile
+          grep -qxF "ARG SEARXNG_VERSION=${NEW_TAG}" Dockerfile
+
+      # Upstream tags embed the searxng/searxng short commit sha after the
+      # last dash, which gives us a changelog link for the PR body.
+      - name: Link upstream changes
+        id: compare
+        if: steps.upstream.outputs.tag != steps.current.outputs.tag
+        env:
+          OLD_TAG: ${{ steps.current.outputs.tag }}
+          NEW_TAG: ${{ steps.upstream.outputs.tag }}
+        run: |
+          old="$OLD_TAG"
+          new="$NEW_TAG"
+          old_sha="${old##*-}"
+          new_sha="${new##*-}"
+          line=""
+          if [ "$old_sha" != "$old" ] && [ "$new_sha" != "$new" ]; then
+            line="Upstream changes: https://github.com/searxng/searxng/compare/${old_sha}...${new_sha}"
+          fi
+          echo "line=$line" >> "$GITHUB_OUTPUT"
 
       - name: Open pull request
-        uses: peter-evans/create-pull-request@v7
+        id: pr
+        if: steps.upstream.outputs.tag != steps.current.outputs.tag
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           branch: bump-searxng-version
           commit-message: "Bump SearXNG to ${{ steps.upstream.outputs.tag }}"
           title: "Bump SearXNG to ${{ steps.upstream.outputs.tag }}"
           body: |
-            Automated bump of the pinned upstream SearXNG image to
-            `${{ steps.upstream.outputs.tag }}`.
+            Automated bump of the pinned upstream SearXNG image from
+            `${{ steps.current.outputs.tag }}` to `${{ steps.upstream.outputs.tag }}`.
 
-            CI builds and smoke tests this PR. After merging, cut a release
-            to publish the updated image.
+            ${{ steps.compare.outputs.line }}
+
+            CI smoke tests this PR. After merging, cut a release to
+            publish the updated image — suggested title:
+            `vX.Y.Z — SearXNG ${{ steps.upstream.outputs.tag }}`
           delete-branch: true
+
+      - name: Run CI on the bump branch
+        if: steps.pr.outputs.pull-request-operation == 'created' || steps.pr.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run docker-publish.yml --ref bump-searxng-version -R ${{ github.repository }}
