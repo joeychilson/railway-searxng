@@ -86,7 +86,7 @@ and `time_range` fields.
 
 | Category | Engines |
 |---|---|
-| General | DuckDuckGo, Brave, Startpage, Qwant, Mojeek, Wikipedia, Wikidata, Currency |
+| General | DuckDuckGo, Brave, Qwant, Mojeek, Wikipedia, Wikidata, Currency |
 | Developer | GitHub, GitLab, Stack Overflow, MDN, Hacker News, Arch Linux Wiki |
 | Packages | npm, PyPI, crates.io, pkg.go.dev, Docker Hub |
 | Science | arXiv, Semantic Scholar, Crossref, PubMed |
