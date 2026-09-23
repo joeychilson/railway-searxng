@@ -6,10 +6,11 @@
 #
 # Engine notes: SearXNG scrapes most general engines, and datacenter IPs
 # (Railway runs on GCP) get CAPTCHA'd or rate-limited by some of them —
-# Google is disabled for that reason. Startpage was dropped after upstream
-# marked it inactive (Proof-of-Work captcha). A diverse set of general engines
-# is enabled so a single engine blocking doesn't empty the results. API-backed
-# engines (wikipedia, github, arxiv, pypi, ...) are reliable from any IP.
+# Google is disabled for that reason. Startpage and Mojeek were dropped after
+# upstream marked them inactive (Proof-of-Work captcha). A diverse set of
+# general engines is enabled so a single engine blocking doesn't empty the
+# results. API-backed engines (wikipedia, github, arxiv, pypi, ...) are
+# reliable from any IP.
 # Check /stats on a running instance to see which engines are erroring.
 
 # Start from upstream defaults for non-engine settings, but keep only the
@@ -21,7 +22,6 @@ use_default_settings:
       - duckduckgo
       - brave
       - qwant
-      - mojeek
       - wikipedia
       - wikidata
       - currency
@@ -88,10 +88,6 @@ engines:
     shortcut: qw
     disabled: false
     weight: 1.0
-  - name: mojeek
-    shortcut: mjk
-    disabled: false
-    weight: 0.9
   - name: wikipedia
     shortcut: wp
     disabled: false

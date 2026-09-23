@@ -48,7 +48,7 @@ import json, sys
 
 config = json.load(open(sys.argv[1]))
 expected = {
-    "duckduckgo", "brave", "qwant", "mojeek", "wikipedia",
+    "duckduckgo", "brave", "qwant", "wikipedia",
     "wikidata", "currency", "github", "gitlab", "stackoverflow", "mdn",
     "hackernews", "arch linux wiki", "npm", "pypi", "crates.io",
     "pkg.go.dev", "docker hub", "arxiv", "semantic scholar", "crossref",
