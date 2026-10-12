@@ -4,7 +4,7 @@
 #
 # Upstream publishes rolling date-tagged images (no semver, no stable
 # releases). Pin one and bump deliberately — never track `latest`:
-ARG SEARXNG_VERSION=2026.9.21-49064747a
+ARG SEARXNG_VERSION=2026.10.11-ad46ebd7d
 
 FROM docker.io/searxng/searxng:${SEARXNG_VERSION}
 
