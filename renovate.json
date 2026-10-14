@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>joeychilson/railway-templates"],
+  "packageRules": [
+    {
+      "description": "SearXNG publishes an image for every commit, so take one a week and merge it even across a year or month change",
+      "matchDepNames": ["SearXNG"],
+      "schedule": ["before 6am on monday"],
+      "automerge": true
+    }
+  ]
+}
