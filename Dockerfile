@@ -1,6 +1,6 @@
 # SearXNG publishes a dated image for every commit and has no stable releases.
 # renovate: datasource=docker packageName=docker.io/searxng/searxng depName=SearXNG versioning=regex:^(?<major>\d{4})\.(?<minor>\d+)\.(?<patch>\d+)-[0-9a-f]+$
-ARG SEARXNG_VERSION=2026.10.17-decdfa6f7
+ARG SEARXNG_VERSION=2026.10.25-54ca1d9cf
 
 FROM docker.io/searxng/searxng:${SEARXNG_VERSION}
 
